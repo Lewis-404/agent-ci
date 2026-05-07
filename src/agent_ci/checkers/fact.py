@@ -175,7 +175,7 @@ class FactChecker(BaseChecker):
         file_pattern = spec.get("file")
         claim_field = spec.get("claim_field", "content")
         rubric = spec.get("rubric", "")
-        model = spec.get("model", "gpt-4o-mini")
+        model = spec.get("model", "deepseek-v4-flash")
 
         if not file_pattern:
             return CheckResult(

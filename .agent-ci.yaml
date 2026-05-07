@@ -42,7 +42,7 @@ fact:
   llm_judge:
     # - file: "output/answer.md"
     #   rubric: "Check if the answer is factually correct and complete"
-    #   model: "gpt-4o-mini"
+    #   model: "deepseek-v4-flash"
 
 diff:
   # Baseline directory for comparison
