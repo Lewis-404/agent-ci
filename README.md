@@ -1,27 +1,27 @@
-# agent-ci
+# agent-ci-verify
 
 > CI/CD verification pipeline for AI agent outputs.  
 > **Don't trust your agent's output — verify it.**
 
-[![CI](https://github.com/Lewis-404/agent-ci/actions/workflows/ci.yml/badge.svg)](https://github.com/Lewis-404/agent-ci/actions/workflows/ci.yml)
-[![PyPI version](https://img.shields.io/pypi/v/agent-ci.svg)](https://pypi.org/project/agent-ci/)
-[![Python](https://img.shields.io/pypi/pyversions/agent-ci.svg)](https://pypi.org/project/agent-ci/)
+[![CI](https://github.com/Lewis-404/agent-ci-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/Lewis-404/agent-ci-verify/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/agent-ci-verify.svg)](https://pypi.org/project/agent-ci-verify/)
+[![Python](https://img.shields.io/pypi/pyversions/agent-ci-verify.svg)](https://pypi.org/project/agent-ci-verify/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
-## Why agent-ci?
+## Why agent-ci-verify?
 
 AI agents are entering production, but **no one can answer "can I trust this output?"** 
 
 Existing tools are all "eval libraries" — you import them and write tests yourself. That's self-review, not independent verification.
 
-**agent-ci is your agent's CI/CD pipeline** — plug it in, and every agent output goes through an independent verification layer before it reaches your users.
+**agent-ci-verify is your agent's CI/CD pipeline** — plug it in, and every agent output goes through an independent verification layer before it reaches your users.
 
 ## Quick Start
 
 ```bash
-pip install agent-ci
+pip install agent-ci-verify
 agent-ci ./agent-output/
 ```
 
@@ -113,15 +113,15 @@ Built-in patterns detect:
 # .github/workflows/agent-check.yml
 - name: Verify agent output
   run: |
-    pip install agent-ci
+    pip install agent-ci-verify
     agent-ci ./output/
 ```
 
 ## Development
 
 ```bash
-git clone https://github.com/Lewis-404/agent-ci.git
-cd agent-ci
+git clone https://github.com/Lewis-404/agent-ci-verify.git
+cd agent-ci-verify
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"

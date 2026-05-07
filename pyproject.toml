@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [project]
-name = "agent-ci"
+name = "agent-ci-verify"
 version = "0.1.0"
 description = "CI/CD verification pipeline for AI agent outputs — fact check, schema validation, diff verification"
 readme = "README.md"
@@ -49,8 +49,8 @@ dev = [
 agent-ci = "agent_ci.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Lewis-404/agent-ci"
-Repository = "https://github.com/Lewis-404/agent-ci.git"
+Homepage = "https://github.com/Lewis-404/agent-ci-verify"
+Repository = "https://github.com/Lewis-404/agent-ci-verify.git"
 
 [tool.ruff]
 line-length = 100

@@ -233,7 +233,7 @@ REASON: [one sentence explanation]"""
                 checker=self.name, check_name="fact:llm_judge",
                 severity=Severity.WARN,
                 message=f"LLM judge failed: {e}",
-                detail="Install 'openai' or 'litellm' with: pip install agent-ci[llm]",
+                detail="Install 'openai' or 'litellm' with: pip install agent-ci-verify[llm]",
             )
 
     async def _call_llm(self, prompt: str, model: str) -> str:
@@ -284,7 +284,7 @@ REASON: [one sentence explanation]"""
         except ImportError:
             raise RuntimeError(
                 "Neither openai nor litellm is installed. "
-                "Install with: pip install 'agent-ci[llm]'"
+                "Install with: pip install 'agent-ci-verify[llm]'"
             )
 
     @staticmethod

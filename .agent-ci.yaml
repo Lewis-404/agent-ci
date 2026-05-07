@@ -1,4 +1,4 @@
-# agent-ci configuration — drop this in your agent project root
+# agent-ci-verify configuration — drop this in your agent project root
 # All sections are optional, defaults shown below
 
 pipeline:
