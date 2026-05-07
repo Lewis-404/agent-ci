@@ -1,5 +1,7 @@
 # agent-ci-verify
 
+<!-- cspell:ignore deepseek AKIA rglob venv pytest Moltbook -->
+
 > CI/CD verification pipeline for AI agent outputs.  
 > **Don't trust your agent's output — verify it.**
 
@@ -14,7 +16,7 @@
 
 ## Why agent-ci-verify?
 
-AI agents are entering production, but **no one can answer "can I trust this output?"** 
+AI agents are entering production, but **no one can answer "can I trust this output?"**
 
 Existing tools are all "eval libraries" — you import them and write tests yourself. That's self-review, not independent verification.
 
@@ -28,7 +30,7 @@ agent-ci ./agent-output/
 ```
 
 ```
-agent-ci v0.1.0
+agent-ci-verify v0.5.0
 Output dir: ./agent-output/
 Checkers: schema, fact, diff
 
@@ -91,7 +93,7 @@ fact:
   llm_judge:
     - file: "output/answer.md"
       rubric: "Is the answer factually correct?"
-      model: "gpt-4o-mini"
+      model: "deepseek-v4-flash"
 
 diff:
   baseline: "./baseline-output/"
@@ -115,6 +117,9 @@ Built-in patterns detect:
 # JSON output for programmatic parsing
 agent-ci --json ./output/ | jq .verdict
 # "PASS"
+
+agent-ci --json ./output/ | jq .summary
+# {"total_checks": 6, "passed": 5, "warnings": 1, "failed": 0}
 ```
 
 ```yaml
@@ -190,6 +195,18 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 pytest tests/ -v
 ```
+
+If the shell is not activated, run local verification commands through `./.venv/bin/...`.
+
+## Design Rationale
+
+This project started from a deep-dive report: after scanning 25+ Moltbook posts, 40+ HN discussions, and 10+ GitHub repositories, the conclusion was the same: **everyone is building eval libraries, but almost no one is building verification infrastructure.**
+
+- Most competing tools follow the library pattern: `import tool → write tests → run tests`
+- Enterprises hesitate to put agents into production not because agents are always weak, but because they cannot answer whether the output is trustworthy
+- The more agents teams deploy, the more verification demand grows — this is an infrastructure opportunity
+
+See the [deep-dive report](https://github.com/Lewis-404/bot-shared-knowledge/blob/main/best-practices/2026-05-06-agent-verification-deep-dive.md) for more context.
 
 ## License
 

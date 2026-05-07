@@ -1,5 +1,7 @@
 # agent-ci-verify
 
+<!-- cspell:ignore deepseek AKIA rglob venv pytest Moltbook -->
+
 > AI Agent 产出的 CI/CD 验证管道。  
 > **别信你的 Agent —— 验证它。**
 
@@ -14,9 +16,9 @@
 
 ## 为什么需要它？
 
-AI Agent 正在进入生产环境，但**没人能回答"这个产出我能信吗"**。
+AI Agent 正在进入生产环境，但**没人能回答“这个产出我能信吗”**。
 
-市面上的工具全是"评估库"——import 进来自己写测试，本质上是自审自查，不是独立验证。
+市面上的工具全是“评估库”——import 进来自己写测试，本质上是自审自查，不是独立验证。
 
 **agent-ci-verify 是 Agent 世界的 CI/CD 管道**——Agent 跑完任务，产出自动进入验证层，过审才放行。
 
@@ -28,7 +30,7 @@ agent-ci ./agent-output/
 ```
 
 ```
-agent-ci-verify v0.2.0
+agent-ci-verify v0.5.0
 Output dir: ./agent-output/
 Checkers: schema, fact, diff
 
@@ -129,6 +131,61 @@ agent-ci --json ./output/ | jq .summary
     agent-ci --json ./output/ | tee result.json
 ```
 
+## 审计报告与历史记录
+
+```bash
+# 生成自包含 HTML 审计报告
+agent-ci --report ./output/
+# ✅ Report saved: ./output/agent-ci-report-20260507-120000.html
+
+# 查看验证历史
+agent-ci --history
+# 📋 Verification History (42 runs)
+#   PASS                 20260507-120000  5✅ 0⚠️  0❌  → ./output/prod/
+#   REJECT               20260507-115500  2✅ 1⚠️  2❌  → ./output/staging/
+```
+
+报告是自包含的 HTML，默认深色主题，适合审计和合规场景。
+
+## Plugins
+
+你可以在任意 `.py` 文件里编写自定义 checker：
+
+```python
+from agent_ci.checkers import BaseChecker
+from agent_ci.types import CheckResult, CheckerReport, Severity
+
+class SizeChecker(BaseChecker):
+    name = "size"
+
+    async def verify(self, output_dir):
+        report = CheckerReport(checker_name=self.name)
+        total = sum(f.stat().st_size for f in output_dir.rglob("*") if f.is_file())
+        limit = self.config.get("size", {}).get("max_bytes", 10_000_000)
+        severity = Severity.FAIL if total > limit else Severity.PASS
+        report.checks.append(CheckResult(
+            checker=self.name, check_name="size_limit",
+            severity=severity,
+            message=f"Output size: {total:,} bytes (limit: {limit:,})",
+        ))
+        return report
+```
+
+在 `.agent-ci.yaml` 中这样配置：
+
+```yaml
+plugins:
+  paths:
+    - ./checks/
+
+pipeline:
+  enabled_checkers: [schema, fact, size]
+  parallel: true  # 所有 checker 并发执行
+
+size:
+  max_bytes: 5000000
+```
+
 ## 开发
 
 ```bash
@@ -140,13 +197,15 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
+如果当前 shell 没有激活虚拟环境，本地验证命令请通过 `./.venv/bin/...` 执行。
+
 ## 设计思路
 
-这个项目的起源是一份深挖报告——我们扫描了 Moltbook 25+ 帖子、HN 40+ 讨论、GitHub 10+ 仓库后发现：**所有人都在做"评估库"（Library），没有人在做"验证基础设施"（Infrastructure）。**
+这个项目的起源是一份深挖报告——我们扫描了 Moltbook 25+ 帖子、HN 40+ 讨论、GitHub 10+ 仓库后发现：**所有人都在做“评估库”（Library），没有人在做“验证基础设施”（Infrastructure）。**
 
-- 竞品全是 `import giskard → 写测试 → 跑测试` 的库模式
-- 企业不敢把 Agent 放生产，不是因为 Agent 笨，是因为没法回答"产出能信吗"
-- Agent 越多，验证需求越大——这是一个**卖铲子给淘金者**的机会
+- 竞品全是 `import tool → 写测试 → 跑测试` 的库模式
+- 企业不敢把 Agent 放生产，不是因为 Agent 笨，而是因为没法回答“产出能不能信”
+- Agent 越多，验证需求越大——这是一个验证基础设施机会
 
 详见[深挖报告](https://github.com/Lewis-404/bot-shared-knowledge/blob/main/best-practices/2026-05-06-agent-verification-deep-dive.md)。
 
