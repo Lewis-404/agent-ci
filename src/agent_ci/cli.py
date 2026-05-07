@@ -28,8 +28,8 @@ def _print_checker_report(report: CheckerReport, title: str) -> None:
 
     table = Table(title=title, show_header=True, header_style="bold")
     table.add_column("Status", width=4)
-    table.add_column("Check", style="cyan", width=25)
-    table.add_column("Message", style="white")
+    table.add_column("Check", style="cyan", width=20)
+    table.add_column("Message", width=40)
     table.add_column("Detail", style="dim", width=40)
 
     for check in report.checks:
@@ -113,12 +113,7 @@ def _print_summary(report: PipelineReport) -> None:
         sys.exit(1)
 
 
-@click.command()
-@click.argument(
-    "output_dir",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-    required=False,
-)
+@click.group(invoke_without_command=True)
 @click.option(
     "-c",
     "--config",
@@ -144,8 +139,9 @@ def _print_summary(report: PipelineReport) -> None:
     help="Show verification history from .agent-ci-history/.",
 )
 @click.option("--version", is_flag=True, help="Show version and exit.")
+@click.pass_context
 def main(
-    output_dir: Path,
+    context: click.Context,
     config_path: Path | None,
     output_json: bool,
     output_report: bool,
@@ -154,8 +150,13 @@ def main(
 ) -> None:
     """CI/CD verification pipeline for AI agent outputs.
 
-    OUTPUT_DIR: Directory containing agent output files to verify.
+    Default command (no subcommand): agent-ci [OPTIONS] OUTPUT_DIR
+    Subcommands: serve — start the verification API server.
+
     """
+    if context.invoked_subcommand is not None:
+        return
+
     if version:
         if output_json:
             import json as _json
@@ -169,9 +170,16 @@ def main(
         _show_history()
         return
 
-    if output_dir is None:
+    # Default mode: OUTPUT_DIR is the first positional argument
+    if not context.args:
         console.print("[red]Error:[/red] Missing argument 'OUTPUT_DIR'.")
         console.print("Usage: agent-ci [OPTIONS] OUTPUT_DIR")
+        sys.exit(2)
+
+    raw_output_dir = context.args.pop(0)
+    output_dir = Path(raw_output_dir)
+    if not output_dir.exists():
+        console.print(f"[red]Error:[/red] Directory not found: {output_dir}")
         sys.exit(2)
 
     try:
@@ -204,10 +212,14 @@ def main(
         report_path.write_text(html, encoding="utf-8")
         _save_to_history(report, output_dir)
 
-        passed = report._all_reports[0].passed if report._all_reports else 0
-        failed = sum(checker_report.failed for checker_report in report._all_reports)
+        total_passed = sum(
+            checker_report.passed for checker_report in report._all_reports
+        )
+        total_failed = sum(
+            checker_report.failed for checker_report in report._all_reports
+        )
         console.print(f"\n[green]✅ Report saved:[/green] {report_path}")
-        console.print(f"[dim]{passed} passed, {failed} failed[/dim]")
+        console.print(f"[dim]{total_passed} passed, {total_failed} failed[/dim]")
         sys.exit(report.exit_code)
 
     if report.schema:
@@ -221,6 +233,54 @@ def main(
             _print_checker_report(checker_report, f"🔌 {name} (plugin)")
 
     _print_summary(report)
+
+
+@main.command("serve")
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    help="Host to bind the server to.",
+    show_default=True,
+)
+@click.option(
+    "--port",
+    default=8899,
+    help="Port to listen on.",
+    show_default=True,
+)
+@click.option(
+    "-c",
+    "--config",
+    "config_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to .agent-ci.yaml config file.",
+)
+def serve_command(host: str, port: int, config_path: Path | None) -> None:
+    """Start the verification API server.
+
+    Provides POST /verify and GET /health endpoints for continuous
+    verification in CI/CD pipelines.
+
+    """
+    try:
+        from agent_ci.server import create_app
+    except ImportError as import_error:
+        console.print(
+            "[red]Error:[/red] Server dependencies not installed. "
+            "Run: pip install 'agent-ci-verify[server]'"
+        )
+        raise SystemExit(1) from import_error
+
+    application = create_app(config_path=str(config_path) if config_path else None)
+    console.print(f"\n[bold]agent-ci-verify[/bold] API Server v{__version__}")
+    console.print(f"Listening on [cyan]http://{host}:{port}[/cyan]")
+    console.print("  [dim]POST /verify[/dim]  — verify agent output directory")
+    console.print("  [dim]GET /health[/dim]   — health check")
+    console.print()
+
+    import uvicorn
+
+    uvicorn.run(application, host=host, port=port, log_level="warning")
 
 
 def _fail(message: str, as_json: bool = False) -> None:
