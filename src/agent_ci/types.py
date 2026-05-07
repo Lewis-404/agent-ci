@@ -86,14 +86,22 @@ class PipelineReport:
     fact: Optional[CheckerReport] = None
     schema: Optional[CheckerReport] = None
     diff: Optional[CheckerReport] = None
+    extras: Optional[dict[str, CheckerReport]] = None
+
+    @property
+    def _all_reports(self) -> list[CheckerReport]:
+        reports = [r for r in (self.schema, self.fact, self.diff) if r]
+        if self.extras:
+            reports.extend(self.extras.values())
+        return reports
 
     @property
     def verdict(self) -> Verdict:
         worst = Severity.PASS
-        for report in (self.fact, self.schema, self.diff):
-            if report and report.worst_severity == Severity.FAIL:
+        for report in self._all_reports:
+            if report.worst_severity == Severity.FAIL:
                 return Verdict.REJECT
-            if report and report.worst_severity == Severity.WARN:
+            if report.worst_severity == Severity.WARN:
                 worst = Severity.WARN
         if worst == Severity.WARN:
             return Verdict.PASS_WITH_WARNINGS
@@ -114,13 +122,15 @@ class PipelineReport:
             result["fact"] = self.fact.to_dict()
         if self.diff:
             result["diff"] = self.diff.to_dict()
+        if self.extras:
+            result["extras"] = {k: v.to_dict() for k, v in self.extras.items()}
         # Global summary
-        all_reports = [r for r in (self.schema, self.fact, self.diff) if r]
+        reports = self._all_reports
         result["summary"] = {
-            "total_checks": sum(len(r.checks) for r in all_reports),
-            "passed": sum(r.passed for r in all_reports),
-            "warnings": sum(r.warnings for r in all_reports),
-            "failed": sum(r.failed for r in all_reports),
+            "total_checks": sum(len(r.checks) for r in reports),
+            "passed": sum(r.passed for r in reports),
+            "warnings": sum(r.warnings for r in reports),
+            "failed": sum(r.failed for r in reports),
         }
         return result
 

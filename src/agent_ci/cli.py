@@ -22,10 +22,6 @@ def _severity_icon(severity: Severity) -> str:
     return {"pass": "✅", "warn": "⚠️ ", "fail": "❌"}.get(severity, "?")
 
 
-def _severity_style(severity: Severity) -> str:
-    return {"pass": "green", "warn": "yellow", "fail": "red"}.get(severity, "white")
-
-
 def _print_checker_report(report: CheckerReport, title: str) -> None:
     """Print a single checker's results as a rich table."""
     if not report or not report.checks:
@@ -39,43 +35,28 @@ def _print_checker_report(report: CheckerReport, title: str) -> None:
 
     for check in report.checks:
         icon = _severity_icon(check.severity)
-        table.add_row(
-            icon,
-            check.check_name,
-            check.message,
-            check.detail or "",
-        )
+        table.add_row(icon, check.check_name, check.message, check.detail or "")
 
     console.print(table)
     console.print()
 
 
 def _print_summary(report: PipelineReport) -> None:
-    """Print final verdict summary."""
+    """Print final verdict with per-checker and totals."""
     verdict = report.verdict
 
-    style_map = {
-        Verdict.PASS: "bold green",
-        Verdict.PASS_WITH_WARNINGS: "bold yellow",
-        Verdict.REJECT: "bold red",
-    }
-    icon_map = {
-        Verdict.PASS: "✅",
-        Verdict.PASS_WITH_WARNINGS: "⚠️",
-        Verdict.REJECT: "❌",
-    }
+    style = {"PASS": "bold green", "PASS WITH WARNINGS": "bold yellow", "REJECT": "bold red"}
+    icon_map = {"PASS": "✅", "PASS WITH WARNINGS": "⚠️", "REJECT": "❌"}
 
-    # Count totals
-    total_checks = 0
-    total_pass = 0
-    total_warn = 0
-    total_fail = 0
-    for r in (report.schema, report.fact, report.diff):
-        if r:
-            total_checks += len(r.checks)
-            total_pass += r.passed
-            total_warn += r.warnings
-            total_fail += r.failed
+    # Collect all reports
+    builtin = [r for r in (report.schema, report.fact, report.diff) if r]
+    extras = list(report.extras.values()) if report.extras else []
+    all_reports = builtin + extras
+
+    total_checks = sum(len(r.checks) for r in all_reports)
+    total_pass = sum(r.passed for r in all_reports)
+    total_warn = sum(r.warnings for r in all_reports)
+    total_fail = sum(r.failed for r in all_reports)
 
     summary_lines = [
         f"  Checks: {total_checks} total | {total_pass} passed | {total_warn} warnings | {total_fail} failed",
@@ -92,17 +73,21 @@ def _print_summary(report: PipelineReport) -> None:
         summary_lines.append(
             f"  Diff:    {report.diff.passed}✅ {report.diff.warnings}⚠️  {report.diff.failed}❌"
         )
+    if extras:
+        for name, r in (report.extras or {}).items():
+            summary_lines.append(
+                f"  {name}:   {r.passed}✅ {r.warnings}⚠️  {r.failed}❌"
+            )
 
-    verdict_text = Text(f"\n  {icon_map[verdict]}  {verdict.value}", style=style_map[verdict])
-    summary_text = "\n".join(summary_lines)
+    verdict_icon = icon_map.get(verdict.value, "?")
+    verdict_style = style.get(verdict.value, "white")
 
     console.print(Panel(
-        summary_text + "\n" + str(verdict_text),
+        "\n".join(summary_lines) + f"\n\n  {verdict_icon}  {verdict.value}",
         title="[bold]Verdict[/bold]",
-        border_style=style_map[verdict].split()[-1],
+        border_style=verdict_style.split()[-1],
     ))
 
-    # Exit code
     if verdict == Verdict.REJECT:
         sys.exit(1)
 
@@ -129,7 +114,6 @@ def main(output_dir: Path, config_path: Path | None, output_json: bool, version:
             console.print(f"agent-ci-verify v{__version__}")
         return
 
-    # Load config
     try:
         config = load_config(config_path)
     except FileNotFoundError as e:
@@ -142,20 +126,21 @@ def main(output_dir: Path, config_path: Path | None, output_json: bool, version:
         console.print(f"Output dir: [cyan]{output_dir}[/cyan]")
         console.print(f"Checkers: [dim]{', '.join(config['pipeline']['enabled_checkers'])}[/dim]\n")
 
-    # Run pipeline
     report = asyncio.run(run_pipeline(output_dir, config))
 
     if output_json:
         print(report.to_json())
         sys.exit(report.exit_code)
 
-    # Print results (rich)
     if report.schema:
         _print_checker_report(report.schema, "📋 Schema Checker")
     if report.fact:
         _print_checker_report(report.fact, "🔍 Fact Checker")
     if report.diff:
         _print_checker_report(report.diff, "📊 Diff Checker")
+    if report.extras:
+        for name, r in report.extras.items():
+            _print_checker_report(r, f"🔌 {name} (plugin)")
 
     _print_summary(report)
 

@@ -126,6 +126,45 @@ agent-ci --json ./output/ | jq .summary
     agent-ci --json ./output/ | tee result.json
 ```
 
+## Plugins
+
+Write custom checkers in any `.py` file:
+
+```python
+from agent_ci.checkers import BaseChecker
+from agent_ci.types import CheckResult, CheckerReport, Severity
+
+class SizeChecker(BaseChecker):
+    name = "size"
+
+    async def verify(self, output_dir):
+        report = CheckerReport(checker_name=self.name)
+        total = sum(f.stat().st_size for f in output_dir.rglob("*") if f.is_file())
+        limit = self.config.get("size", {}).get("max_bytes", 10_000_000)
+        severity = Severity.FAIL if total > limit else Severity.PASS
+        report.checks.append(CheckResult(
+            checker=self.name, check_name="size_limit",
+            severity=severity,
+            message=f"Output size: {total:,} bytes (limit: {limit:,})",
+        ))
+        return report
+```
+
+Configure in `.agent-ci.yaml`:
+
+```yaml
+plugins:
+  paths:
+    - ./checks/
+
+pipeline:
+  enabled_checkers: [schema, fact, size]
+  parallel: true  # Run all checkers concurrently
+
+size:
+  max_bytes: 5000000
+```
+
 ## Development
 
 ```bash

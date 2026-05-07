@@ -7,6 +7,7 @@ pipeline:
     - fact
     - diff
   fail_fast: false  # Stop on first failure
+  parallel: true     # Run checkers concurrently (default: true)
 
 schema:
   # JSON Schema files to validate against output

@@ -24,6 +24,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "pipeline": {
         "enabled_checkers": ["schema", "fact", "diff"],
         "fail_fast": False,
+        "parallel": True,
+    },
+    "plugins": {
+        "paths": [],
     },
 }
 
