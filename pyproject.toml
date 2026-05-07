@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project]
+name = "agent-ci"
+version = "0.1.0"
+description = "CI/CD verification pipeline for AI agent outputs — fact check, schema validation, diff verification"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    { name = "Lewis-404" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.20",
+    "httpx>=0.27",
+    "rich>=13.0",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+llm = [
+    "openai>=1.0",
+    "litellm>=1.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.12",
+    "ruff>=0.4",
+    "mypy>=1.8",
+]
+
+[project.scripts]
+agent-ci = "agent_ci.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Lewis-404/agent-ci"
+Repository = "https://github.com/Lewis-404/agent-ci.git"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"

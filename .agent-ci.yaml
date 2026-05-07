@@ -1,0 +1,58 @@
+# agent-ci configuration — drop this in your agent project root
+# All sections are optional, defaults shown below
+
+pipeline:
+  enabled_checkers:
+    - schema
+    - fact
+    - diff
+  fail_fast: false  # Stop on first failure
+
+schema:
+  # JSON Schema files to validate against output
+  json_schemas:
+    # schemas/output.schema.json: "output/**/*.json"
+
+  security:
+    enabled: true  # Scan for leaked API keys, tokens, passwords
+
+  # Files that must exist in output
+  required_files: []
+  #  - "output/result.json"
+  #  - "output/summary.md"
+
+fact:
+  # File existence & content checks
+  files:
+    # - pattern: "output/**/*.json"
+    #   expected_count: 1
+    #   min_size_bytes: 10
+    #   content_checks:
+    #     - type: contains
+    #       value: "success"
+
+  # API endpoint reconciliation
+  api:
+    # - endpoint: "https://api.example.com/health"
+    #   method: GET
+    #   expected_status: 200
+    #   timeout: 10
+
+  # LLM-as-Judge (requires: pip install 'agent-ci[llm]')
+  llm_judge:
+    # - file: "output/answer.md"
+    #   rubric: "Check if the answer is factually correct and complete"
+    #   model: "gpt-4o-mini"
+
+diff:
+  # Baseline directory for comparison
+  baseline: null
+  #  baseline: "./baseline-output/"
+
+  # Semantic similarity threshold (0-1) below which changes trigger warnings
+  semantic_threshold: 0.7
+
+  # Thresholds for file count changes
+  # max_changed_files: 5
+  # max_added_files: 3
+  # max_removed_files: 2
