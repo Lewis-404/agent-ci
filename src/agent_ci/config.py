@@ -31,7 +31,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
 }
 
 
-def load_config(path: str | Path | None = None) -> dict[str, Any]:
+def load_config(
+    path: str | Path | None = None,
+    server_mode: bool = False,
+) -> dict[str, Any]:
     """Load agent-ci config from YAML file, merging with defaults.
 
     Search order:
@@ -42,6 +45,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     Args:
         path: Optional explicit config file path.
+        server_mode: If True, strips unsafe config (e.g. directory plugins).
 
     Returns:
         Merged configuration dict.
@@ -50,20 +54,23 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         config_path = Path(path)
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
-        return _merge_with_defaults(_load_yaml(config_path))
+        return _merge_with_defaults(_load_yaml(config_path), server_mode)
 
     # Search upward for .agent-ci.yaml
     search_dir = Path.cwd()
     for _ in range(10):  # Max 10 levels up
         candidate = search_dir / ".agent-ci.yaml"
         if candidate.exists():
-            return _merge_with_defaults(_load_yaml(candidate))
+            return _merge_with_defaults(_load_yaml(candidate), server_mode)
         if search_dir.parent == search_dir:
             break
         search_dir = search_dir.parent
 
     # No config found, use defaults
-    return _deep_copy(DEFAULT_CONFIG)
+    config = _deep_copy(DEFAULT_CONFIG)
+    if server_mode:
+        _sanitize_for_server(config)
+    return config
 
 
 def _load_yaml(path: Path) -> dict:
@@ -80,7 +87,7 @@ def _deep_copy(d: dict) -> dict:
     return yaml.safe_load(yaml.dump(d))
 
 
-def _merge_with_defaults(user_config: dict) -> dict:
+def _merge_with_defaults(user_config: dict, server_mode: bool = False) -> dict:
     """Deep-merge user config into defaults. None values are skipped."""
     merged = _deep_copy(DEFAULT_CONFIG)
 
@@ -94,4 +101,18 @@ def _merge_with_defaults(user_config: dict) -> dict:
                 target[key] = value
 
     _merge(merged, user_config)
+
+    if server_mode:
+        _sanitize_for_server(merged)
+
     return merged
+
+
+def _sanitize_for_server(config: dict[str, Any]) -> None:
+    """Strip unsafe config options for server mode.
+
+    Directory-based plugins are disabled because exec_module() on
+    user-controlled paths is an arbitrary code execution vector.
+    """
+    if "plugins" in config:
+        config["plugins"]["paths"] = []

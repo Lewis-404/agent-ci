@@ -113,7 +113,12 @@ def _print_summary(report: PipelineReport) -> None:
         sys.exit(1)
 
 
-@click.group(invoke_without_command=True)
+@click.command()
+@click.argument(
+    "output_dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    required=False,
+)
 @click.option(
     "-c",
     "--config",
@@ -139,24 +144,40 @@ def _print_summary(report: PipelineReport) -> None:
     help="Show verification history from .agent-ci-history/.",
 )
 @click.option("--version", is_flag=True, help="Show version and exit.")
-@click.pass_context
+@click.option(
+    "--serve",
+    is_flag=True,
+    help="Start the verification API server.",
+)
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    help="Host to bind the server to (with --serve).",
+    show_default=True,
+)
+@click.option(
+    "--port",
+    default=8899,
+    help="Port to listen on (with --serve).",
+    show_default=True,
+)
 def main(
-    context: click.Context,
+    output_dir: Path | None,
     config_path: Path | None,
     output_json: bool,
     output_report: bool,
     history: bool,
     version: bool,
+    serve: bool,
+    host: str,
+    port: int,
 ) -> None:
     """CI/CD verification pipeline for AI agent outputs.
 
-    Default command (no subcommand): agent-ci [OPTIONS] OUTPUT_DIR
-    Subcommands: serve — start the verification API server.
+    Default mode: agent-ci [OPTIONS] OUTPUT_DIR
+    Server mode: agent-ci --serve [OPTIONS]
 
     """
-    if context.invoked_subcommand is not None:
-        return
-
     if version:
         if output_json:
             import json as _json
@@ -166,20 +187,18 @@ def main(
             console.print(f"agent-ci-verify v{__version__}")
         return
 
+    if serve:
+        _start_server(config_path, host, port)
+        return
+
     if history:
         _show_history()
         return
 
-    # Default mode: OUTPUT_DIR is the first positional argument
-    if not context.args:
+    if output_dir is None:
         console.print("[red]Error:[/red] Missing argument 'OUTPUT_DIR'.")
         console.print("Usage: agent-ci [OPTIONS] OUTPUT_DIR")
-        sys.exit(2)
-
-    raw_output_dir = context.args.pop(0)
-    output_dir = Path(raw_output_dir)
-    if not output_dir.exists():
-        console.print(f"[red]Error:[/red] Directory not found: {output_dir}")
+        console.print("       agent-ci --serve [OPTIONS]")
         sys.exit(2)
 
     try:
@@ -235,33 +254,8 @@ def main(
     _print_summary(report)
 
 
-@main.command("serve")
-@click.option(
-    "--host",
-    default="127.0.0.1",
-    help="Host to bind the server to.",
-    show_default=True,
-)
-@click.option(
-    "--port",
-    default=8899,
-    help="Port to listen on.",
-    show_default=True,
-)
-@click.option(
-    "-c",
-    "--config",
-    "config_path",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Path to .agent-ci.yaml config file.",
-)
-def serve_command(host: str, port: int, config_path: Path | None) -> None:
-    """Start the verification API server.
-
-    Provides POST /verify and GET /health endpoints for continuous
-    verification in CI/CD pipelines.
-
-    """
+def _start_server(config_path: Path | None, host: str, port: int) -> None:
+    """Start the verification API server."""
     try:
         from agent_ci.server import create_app
     except ImportError as import_error:
