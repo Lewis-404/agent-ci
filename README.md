@@ -30,7 +30,7 @@ agent-ci ./agent-output/
 ```
 
 ```
-agent-ci-verify v0.5.0
+agent-ci-verify v1.0.0
 Output dir: ./agent-output/
 Checkers: schema, fact, diff
 
@@ -197,6 +197,29 @@ pytest tests/ -v
 ```
 
 If the shell is not activated, run local verification commands through `./.venv/bin/...`.
+
+## Service Mode (v1.0+)
+
+Run as a persistent HTTP API for CI/CD integration:
+
+```bash
+# Install with server dependencies
+pip install 'agent-ci-verify[server]'
+
+# Start the API server
+agent-ci serve
+
+# Health check
+curl http://127.0.0.1:8899/health
+# {"status":"ok","version":"1.0.0"}
+
+# Verify agent output via API
+curl -X POST http://127.0.0.1:8899/verify \
+  -H "Content-Type: application/json" \
+  -d '{"output_directory": "/path/to/agent/output"}'
+```
+
+Customize host/port: `agent-ci serve --host 0.0.0.0 --port 8080`.
 
 ## Design Rationale
 

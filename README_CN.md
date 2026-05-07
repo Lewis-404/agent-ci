@@ -30,7 +30,7 @@ agent-ci ./agent-output/
 ```
 
 ```
-agent-ci-verify v0.5.0
+agent-ci-verify v1.0.0
 Output dir: ./agent-output/
 Checkers: schema, fact, diff
 
@@ -198,6 +198,29 @@ pytest tests/ -v
 ```
 
 如果当前 shell 没有激活虚拟环境，本地验证命令请通过 `./.venv/bin/...` 执行。
+
+## Service 模式（v1.0+）
+
+可以作为常驻 HTTP API 运行，接入 CI/CD 管道：
+
+```bash
+# 安装 server 依赖
+pip install 'agent-ci-verify[server]'
+
+# 启动 API 服务
+agent-ci serve
+
+# 健康检查
+curl http://127.0.0.1:8899/health
+# {"status":"ok","version":"1.0.0"}
+
+# 通过 API 验证 Agent 产出
+curl -X POST http://127.0.0.1:8899/verify \
+  -H "Content-Type: application/json" \
+  -d '{"output_directory": "/path/to/agent/output"}'
+```
+
+自定义主机/端口：`agent-ci serve --host 0.0.0.0 --port 8080`.
 
 ## 设计思路
 
