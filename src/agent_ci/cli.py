@@ -93,15 +93,24 @@ def _print_summary(report: PipelineReport) -> None:
 
 
 @click.command()
-@click.argument("output_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("output_dir", type=click.Path(exists=True, file_okay=False, path_type=Path), required=False)
 @click.option(
     "-c", "--config", "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to .agent-ci.yaml config file.",
 )
 @click.option("--json", "output_json", is_flag=True, help="Output machine-readable JSON.")
+@click.option("--report", "output_report", is_flag=True, help="Generate self-contained HTML audit report.")
+@click.option("--history", is_flag=True, help="Show verification history from .agent-ci-history/.")
 @click.option("--version", is_flag=True, help="Show version and exit.")
-def main(output_dir: Path, config_path: Path | None, output_json: bool, version: bool) -> None:
+def main(
+    output_dir: Path,
+    config_path: Path | None,
+    output_json: bool,
+    output_report: bool,
+    history: bool,
+    version: bool,
+) -> None:
     """CI/CD verification pipeline for AI agent outputs.
 
     OUTPUT_DIR: Directory containing agent output files to verify.
@@ -114,6 +123,15 @@ def main(output_dir: Path, config_path: Path | None, output_json: bool, version:
             console.print(f"agent-ci-verify v{__version__}")
         return
 
+    if history:
+        _show_history()
+        return
+
+    if output_dir is None:
+        console.print("[red]Error:[/red] Missing argument 'OUTPUT_DIR'.")
+        console.print("Usage: agent-ci [OPTIONS] OUTPUT_DIR")
+        sys.exit(2)
+
     try:
         config = load_config(config_path)
     except FileNotFoundError as e:
@@ -121,17 +139,32 @@ def main(output_dir: Path, config_path: Path | None, output_json: bool, version:
     except Exception as e:
         _fail(f"Config error: {e}", output_json)
 
-    if not output_json:
+    if not output_json and not output_report:
         console.print(f"\n[bold]agent-ci-verify[/bold] v{__version__}")
         console.print(f"Output dir: [cyan]{output_dir}[/cyan]")
         console.print(f"Checkers: [dim]{', '.join(config['pipeline']['enabled_checkers'])}[/dim]\n")
 
     report = asyncio.run(run_pipeline(output_dir, config))
 
+    # JSON output (machine)
     if output_json:
         print(report.to_json())
+        _save_to_history(report, output_dir)
         sys.exit(report.exit_code)
 
+    # HTML report
+    if output_report:
+        from agent_ci.report import generate_report
+        html = generate_report(report, output_dir, __version__)
+        report_path = output_dir / f"agent-ci-report-{_timestamp()}.html"
+        report_path.write_text(html, encoding="utf-8")
+        _save_to_history(report, output_dir)
+        console.print(f"\n[green]✅ Report saved:[/green] {report_path}")
+        console.print(f"[dim]{report._all_reports[0].passed if report._all_reports else 0} passed, "
+                      f"{sum(r.failed for r in report._all_reports) if report._all_reports else 0} failed[/dim]")
+        sys.exit(report.exit_code)
+
+    # Rich terminal output
     if report.schema:
         _print_checker_report(report.schema, "📋 Schema Checker")
     if report.fact:
@@ -153,6 +186,69 @@ def _fail(message: str, as_json: bool = False) -> None:
     else:
         console.print(f"[red]Error:[/red] {message}")
     sys.exit(1)
+
+
+def _timestamp() -> str:
+    """Generate a sortable timestamp for filenames."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+
+
+def _history_dir() -> Path:
+    """Get or create the history directory."""
+    d = Path.cwd() / ".agent-ci-history"
+    d.mkdir(exist_ok=True)
+    return d
+
+
+def _save_to_history(report: PipelineReport, output_dir: Path) -> None:
+    """Archive verification result to history."""
+    try:
+        hist = _history_dir()
+        record = {
+            "timestamp": _timestamp(),
+            "output_dir": str(output_dir),
+            "report": report.to_dict(),
+        }
+        import json as _json
+        (hist / f"{record['timestamp']}.json").write_text(
+            _json.dumps(record, indent=2, ensure_ascii=False)
+        )
+    except Exception:
+        pass  # Non-critical
+
+
+def _show_history() -> None:
+    """Display recent verification history."""
+    hist = _history_dir()
+    files = sorted(hist.glob("*.json"), reverse=True)
+    if not files:
+        console.print("[dim]No verification history found.[/dim]")
+        return
+
+    console.print(f"\n[bold]📋 Verification History[/bold] [dim]({len(files)} runs)[/dim]\n")
+
+    for f in files[:20]:
+        import json as _json
+        try:
+            data = _json.loads(f.read_text())
+            r = data.get("report", {})
+            summary = r.get("summary", {})
+            verdict = r.get("verdict", "?")
+            ts = data.get("timestamp", f.stem)
+            od = data.get("output_dir", "?")
+
+            style = {"PASS": "green", "PASS WITH WARNINGS": "yellow", "REJECT": "red"}
+            console.print(
+                f"  [{style.get(verdict, 'white')}]{verdict:<20}[/{style.get(verdict, 'white')}] "
+                f"[dim]{ts}[/dim]  "
+                f"{summary.get('passed',0)}✅ {summary.get('warnings',0)}⚠️  {summary.get('failed',0)}❌  "
+                f"[dim]→ {od}[/dim]"
+            )
+        except Exception:
+            console.print(f"  [dim]{f.stem} — parse error[/dim]")
+
+    console.print()
 
 
 if __name__ == "__main__":

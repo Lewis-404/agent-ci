@@ -115,9 +115,6 @@ Built-in patterns detect:
 # JSON output for programmatic parsing
 agent-ci --json ./output/ | jq .verdict
 # "PASS"
-
-agent-ci --json ./output/ | jq .summary
-# {"total_checks": 6, "passed": 5, "warnings": 1, "failed": 0}
 ```
 
 ```yaml
@@ -127,6 +124,22 @@ agent-ci --json ./output/ | jq .summary
     pip install agent-ci-verify
     agent-ci --json ./output/ | tee result.json
 ```
+
+## Audit Reports & History
+
+```bash
+# Generate a self-contained HTML audit report
+agent-ci --report ./output/
+# ✅ Report saved: ./output/agent-ci-report-20260507-120000.html
+
+# View verification history
+agent-ci --history
+# 📋 Verification History (42 runs)
+#   PASS                 20260507-120000  5✅ 0⚠️  0❌  → ./output/prod/
+#   REJECT               20260507-115500  2✅ 1⚠️  2❌  → ./output/staging/
+```
+
+Reports are self-contained HTML with dark theme, suitable for auditors and compliance.
 
 ## Plugins
 
