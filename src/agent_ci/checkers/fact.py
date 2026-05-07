@@ -237,11 +237,26 @@ REASON: [one sentence explanation]"""
             )
 
     async def _call_llm(self, prompt: str, model: str) -> str:
-        """Call LLM API, trying openai first, then litellm."""
+        """Call LLM API, trying openai first, then litellm.
+
+        Supports: OPENAI_API_KEY, DEEPSEEK_API_KEY env vars.
+        Config keys: api_key, base_url in fact.llm_judge spec or top-level llm config.
+        """
+        import os
+
+        llm_config = self.config.get("llm", {})
+        api_key = llm_config.get("api_key") or os.environ.get("OPENAI_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+        base_url = llm_config.get("base_url") or os.environ.get("OPENAI_BASE_URL") or os.environ.get("DEEPSEEK_BASE_URL")
+
         # Try openai
         try:
             from openai import AsyncOpenAI
-            client = AsyncOpenAI()
+            client_kwargs = {}
+            if api_key:
+                client_kwargs["api_key"] = api_key
+            if base_url:
+                client_kwargs["base_url"] = base_url
+            client = AsyncOpenAI(**client_kwargs)
             resp = await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
@@ -251,8 +266,10 @@ REASON: [one sentence explanation]"""
             return resp.choices[0].message.content or ""
         except ImportError:
             pass
-        except Exception:
-            pass
+        except Exception as e:
+            # If openai failed with explicit key, don't fall through silently
+            if api_key:
+                raise RuntimeError(f"LLM call failed: {e}") from e
 
         # Try litellm
         try:
