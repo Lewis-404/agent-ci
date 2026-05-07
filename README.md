@@ -8,6 +8,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/agent-ci-verify.svg)](https://pypi.org/project/agent-ci-verify/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+[中文](./README_CN.md)
+
 ---
 
 ## Why agent-ci-verify?
