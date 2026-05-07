@@ -1,9 +1,8 @@
 """Shared types and dataclasses for agent-ci."""
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class Severity(str, Enum):
@@ -30,8 +29,8 @@ class CheckResult:
     check_name: str
     severity: Severity
     message: str
-    detail: Optional[str] = None
-    file_path: Optional[str] = None
+    detail: str | None = None
+    file_path: str | None = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -83,10 +82,10 @@ class CheckerReport:
 class PipelineReport:
     """Complete verification pipeline report."""
 
-    fact: Optional[CheckerReport] = None
-    schema: Optional[CheckerReport] = None
-    diff: Optional[CheckerReport] = None
-    extras: Optional[dict[str, CheckerReport]] = None
+    fact: CheckerReport | None = None
+    schema: CheckerReport | None = None
+    diff: CheckerReport | None = None
+    extras: dict[str, CheckerReport] | None = None
 
     @property
     def _all_reports(self) -> list[CheckerReport]:

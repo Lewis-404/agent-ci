@@ -39,7 +39,8 @@ async def test_diff_new_file(valid_output, diff_config, baseline_dir):
 async def test_diff_removed_file(tmp_path, diff_config):
     """Files in baseline but missing from output should be flagged."""
     # Copy baseline files to tmp_path, then remove one
-    import shutil, os
+    import os
+    import shutil
     baseline_dir = Path(diff_config["diff"]["baseline"])
     for f in baseline_dir.iterdir():
         shutil.copy2(f, tmp_path / f.name)

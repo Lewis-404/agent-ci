@@ -1,10 +1,9 @@
 """Tests for pipeline and config."""
 
-from pathlib import Path
 
 import pytest
 
-from agent_ci.config import load_config, DEFAULT_CONFIG
+from agent_ci.config import DEFAULT_CONFIG, load_config
 from agent_ci.pipeline import run_pipeline
 from agent_ci.types import PipelineReport, Verdict
 

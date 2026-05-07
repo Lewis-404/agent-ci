@@ -35,19 +35,19 @@ def discover_plugins(config: dict[str, Any]) -> dict[str, type[BaseChecker]]:
 
 def _load_entry_points(plugins: dict[str, type[BaseChecker]]) -> None:
     """Load checkers registered via setuptools entry points."""
-    if sys.version_info >= (3, 9):
-        from importlib.metadata import entry_points
-        try:
-            eps = entry_points(group="agent_ci.checkers")
-            for ep in eps:
-                try:
-                    cls = ep.load()
-                    if issubclass(cls, BaseChecker) and hasattr(cls, "name"):
-                        plugins[cls.name] = cls
-                except Exception:
-                    pass
-        except Exception:
-            pass
+    from importlib.metadata import entry_points
+
+    try:
+        eps = entry_points(group="agent_ci.checkers")
+        for ep in eps:
+            try:
+                cls = ep.load()
+                if issubclass(cls, BaseChecker) and hasattr(cls, "name"):
+                    plugins[cls.name] = cls
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 def _load_directory_plugins(

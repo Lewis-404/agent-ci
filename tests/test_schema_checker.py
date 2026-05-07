@@ -1,7 +1,6 @@
 """Tests for Schema Checker."""
 
 import json
-from pathlib import Path
 
 import pytest
 

@@ -1,10 +1,12 @@
 """Audit report generator — produces self-contained HTML verification reports."""
 
+# cspell:ignore Segoe
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from agent_ci.types import PipelineReport, Severity
+from agent_ci.types import PipelineReport
 
 # ── HTML Template ─────────────────────────────────────────────────
 _REPORT_TEMPLATE = """<!DOCTYPE html>
@@ -15,22 +17,52 @@ _REPORT_TEMPLATE = """<!DOCTYPE html>
 <title>Agent Verification Report — {verdict}</title>
 <style>
   :root {{
-    --bg: #0d1117; --card: #161b22; --border: #30363d;
-    --text: #c9d1d9; --muted: #8b949e; --accent: #58a6ff;
-    --pass: #3fb950; --warn: #d2991d; --fail: #f85149;
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --pass: #3fb950;
+    --warn: #d2991d;
+    --fail: #f85149;
   }}
   * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; line-height:1.6; padding:2rem; }}
+  body {{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    line-height:1.6;
+    padding:2rem;
+  }}
   .container {{ max-width:960px; margin:0 auto; }}
   h1 {{ font-size:1.8rem; margin-bottom:.25rem; }}
   h2 {{ font-size:1.2rem; color:var(--muted); margin:1.5rem 0 .75rem; }}
   .meta {{ color:var(--muted); font-size:.85rem; margin-bottom:1.5rem; }}
-  .verdict {{ display:inline-block; padding:.3rem 1rem; border-radius:999px; font-weight:700; font-size:1.1rem; }}
+  .verdict {{
+    display:inline-block;
+    padding:.3rem 1rem;
+    border-radius:999px;
+    font-weight:700;
+    font-size:1.1rem;
+  }}
   .verdict.PASS {{ background:#1a3a1a; color:var(--pass); }}
   .verdict.WARN {{ background:#3a2e0e; color:var(--warn); }}
   .verdict.REJECT {{ background:#3a1212; color:var(--fail); }}
-  .card {{ background:var(--card); border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1rem; }}
-  .card h3 {{ font-size:1rem; margin-bottom:.75rem; display:flex; align-items:center; gap:.5rem; }}
+  .card {{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:1.25rem;
+    margin-bottom:1rem;
+  }}
+  .card h3 {{
+    font-size:1rem;
+    margin-bottom:.75rem;
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+  }}
   .summary-row {{ display:flex; gap:1.5rem; margin-bottom:.75rem; font-size:.9rem; }}
   .summary-row span {{ display:flex; align-items:center; gap:.3rem; }}
   .pill {{ padding:.15rem .6rem; border-radius:999px; font-size:.8rem; font-weight:600; }}
@@ -38,16 +70,45 @@ _REPORT_TEMPLATE = """<!DOCTYPE html>
   .pill.warn {{ background:#3a2e0e; color:var(--warn); }}
   .pill.fail {{ background:#3a1212; color:var(--fail); }}
   table {{ width:100%; border-collapse:collapse; font-size:.85rem; }}
-  th {{ text-align:left; padding:.5rem .75rem; border-bottom:1px solid var(--border); color:var(--muted); font-weight:600; }}
+  th {{
+    text-align:left;
+    padding:.5rem .75rem;
+    border-bottom:1px solid var(--border);
+    color:var(--muted);
+    font-weight:600;
+  }}
   td {{ padding:.4rem .75rem; border-bottom:1px solid var(--border); }}
   tr:last-child td {{ border-bottom:none; }}
-  .badge {{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.4rem; }}
+  .badge {{
+    display:inline-block;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    margin-right:.4rem;
+  }}
   .badge.pass {{ background:var(--pass); }}
   .badge.warn {{ background:var(--warn); }}
   .badge.fail {{ background:var(--fail); }}
-  .footer {{ text-align:center; color:var(--muted); font-size:.75rem; margin-top:3rem; padding-top:1rem; border-top:1px solid var(--border); }}
-  .detail {{ color:var(--muted); font-size:.8rem; max-width:350px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
-  @media print {{ body {{ background:#fff; color:#000; }} .card {{ border-color:#ddd; }} }}
+  .footer {{
+    text-align:center;
+    color:var(--muted);
+    font-size:.75rem;
+    margin-top:3rem;
+    padding-top:1rem;
+    border-top:1px solid var(--border);
+  }}
+  .detail {{
+    color:var(--muted);
+    font-size:.8rem;
+    max-width:350px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }}
+  @media print {{
+    body {{ background:#fff; color:#000; }}
+    .card {{ border-color:#ddd; }}
+  }}
 </style>
 </head>
 <body>
@@ -94,22 +155,19 @@ _CHECKER_SECTION = """
     </table>
   </div>"""
 
+_EMPTY_ROWS = (
+    '<tr><td colspan="4" style="color:var(--muted)">'
+    "No checks"
+    "</td></tr>"
+)
+
 
 def generate_report(
     report: PipelineReport,
     output_dir: Path,
     version: str = "0.5.0",
 ) -> str:
-    """Generate a self-contained HTML audit report.
-
-    Args:
-        report: Pipeline verification results.
-        output_dir: The directory that was verified.
-        version: agent-ci-verify version string.
-
-    Returns:
-        Complete HTML string.
-    """
+    """Generate a self-contained HTML audit report."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     verdict = report.verdict.value
@@ -119,7 +177,6 @@ def generate_report(
     elif "REJECT" in verdict:
         verdict_class = "REJECT"
 
-    # Build checker sections
     sections: list[str] = []
     checker_data = [
         ("📋", "Schema Checker", report.schema),
@@ -127,27 +184,37 @@ def generate_report(
         ("📊", "Diff Checker", report.diff),
     ]
     if report.extras:
-        for name, r in report.extras.items():
-            checker_data.append(("🔌", f"{name} (plugin)", r))
+        for name, plugin_report in report.extras.items():
+            checker_data.append(("🔌", f"{name} (plugin)", plugin_report))
 
-    for icon, title, cr in checker_data:
-        if cr is None:
+    for icon, title, checker_report in checker_data:
+        if checker_report is None:
             continue
-        rows = _build_table_rows(cr)
-        sections.append(_CHECKER_SECTION.format(
-            icon=icon, title=title,
-            passed=cr.passed, warnings=cr.warnings, failed=cr.failed,
-            rows=rows,
-        ))
 
-    # Global totals
-    all_reports = [r for r in (report.schema, report.fact, report.diff) if r]
+        rows = _build_table_rows(checker_report)
+        sections.append(
+            _CHECKER_SECTION.format(
+                icon=icon,
+                title=title,
+                passed=checker_report.passed,
+                warnings=checker_report.warnings,
+                failed=checker_report.failed,
+                rows=rows,
+            )
+        )
+
+    all_reports = [
+        checker_report
+        for checker_report in (report.schema, report.fact, report.diff)
+        if checker_report
+    ]
     if report.extras:
         all_reports.extend(report.extras.values())
-    total_pass = sum(r.passed for r in all_reports)
-    total_warn = sum(r.warnings for r in all_reports)
-    total_fail = sum(r.failed for r in all_reports)
-    total_checks = sum(len(r.checks) for r in all_reports)
+
+    total_pass = sum(checker_report.passed for checker_report in all_reports)
+    total_warn = sum(checker_report.warnings for checker_report in all_reports)
+    total_fail = sum(checker_report.failed for checker_report in all_reports)
+    total_checks = sum(len(checker_report.checks) for checker_report in all_reports)
 
     return _REPORT_TEMPLATE.format(
         verdict=verdict,
@@ -167,20 +234,32 @@ def _build_table_rows(report: Any) -> str:
     """Build HTML table rows from a CheckerReport."""
     rows: list[str] = []
     for check in report.checks:
-        sev = check.severity.value if hasattr(check.severity, "value") else str(check.severity)
-        badge = f'<span class="badge {sev}"></span>'
+        severity = (
+            check.severity.value
+            if hasattr(check.severity, "value")
+            else str(check.severity)
+        )
+        badge = f'<span class="badge {severity}"></span>'
         detail = check.detail or ""
         if len(detail) > 150:
             detail = detail[:147] + "..."
+
         rows.append(
             f'<tr><td>{badge}</td>'
             f'<td><code>{check.check_name}</code></td>'
             f'<td>{check.message}</td>'
-            f'<td class="detail" title="{_escape_attr(check.detail or "")}">{detail}</td></tr>'
+            f'<td class="detail" title="{_escape_attr(check.detail or "")}">'
+            f"{detail}</td></tr>"
         )
-    return "\n        ".join(rows) if rows else '<tr><td colspan="4" style="color:var(--muted)">No checks</td></tr>'
+
+    return "\n        ".join(rows) if rows else _EMPTY_ROWS
 
 
 def _escape_attr(text: str) -> str:
     """Escape text for HTML attribute."""
-    return text.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        text.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )

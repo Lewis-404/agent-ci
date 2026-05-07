@@ -55,7 +55,7 @@ async def run_pipeline(output_dir: Path, config: dict[str, Any]) -> PipelineRepo
             *[checker.verify(output_dir) for _, checker in tasks],
             return_exceptions=True,
         )
-        for (name, _), result in zip(tasks, results):
+        for (name, _), result in zip(tasks, results, strict=True):
             if isinstance(result, BaseException):
                 # Checker crashed — create error report
                 error_report = CheckerReport(checker_name=name)

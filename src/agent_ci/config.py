@@ -5,7 +5,6 @@ from typing import Any
 
 import yaml
 
-
 DEFAULT_CONFIG: dict[str, Any] = {
     "schema": {
         "json_schemas": {},
