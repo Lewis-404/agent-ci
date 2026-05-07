@@ -30,7 +30,7 @@ agent-ci ./agent-output/
 ```
 
 ```
-agent-ci-verify v1.0.0
+agent-ci-verify v1.0.1
 Output dir: ./agent-output/
 Checkers: schema, fact, diff
 
