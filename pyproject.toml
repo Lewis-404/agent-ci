@@ -7,7 +7,7 @@ where = ["src"]
 
 [project]
 name = "agent-ci-verify"
-version = "1.0.1"
+version = "1.0.2"
 description = "CI/CD verification pipeline for AI agent outputs — fact check, schema validation, diff verification"
 readme = "README.md"
 license = "MIT"
