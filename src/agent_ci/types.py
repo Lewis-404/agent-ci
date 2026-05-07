@@ -1,6 +1,7 @@
 """Shared types and dataclasses for agent-ci."""
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Optional
 
@@ -32,6 +33,11 @@ class CheckResult:
     detail: Optional[str] = None
     file_path: Optional[str] = None
 
+    def to_dict(self) -> dict:
+        d = asdict(self)
+        d["severity"] = self.severity.value
+        return {k: v for k, v in d.items() if v is not None}
+
 
 @dataclass
 class CheckerReport:
@@ -60,6 +66,18 @@ class CheckerReport:
             return Severity.WARN
         return Severity.PASS
 
+    def to_dict(self) -> dict:
+        return {
+            "checker": self.checker_name,
+            "summary": {
+                "passed": self.passed,
+                "warnings": self.warnings,
+                "failed": self.failed,
+                "total": len(self.checks),
+            },
+            "checks": [c.to_dict() for c in self.checks],
+        }
+
 
 @dataclass
 class PipelineReport:
@@ -80,3 +98,31 @@ class PipelineReport:
         if worst == Severity.WARN:
             return Verdict.PASS_WITH_WARNINGS
         return Verdict.PASS
+
+    @property
+    def exit_code(self) -> int:
+        return 1 if self.verdict == Verdict.REJECT else 0
+
+    def to_dict(self) -> dict:
+        result: dict = {
+            "verdict": self.verdict.value,
+            "exit_code": self.exit_code,
+        }
+        if self.schema:
+            result["schema"] = self.schema.to_dict()
+        if self.fact:
+            result["fact"] = self.fact.to_dict()
+        if self.diff:
+            result["diff"] = self.diff.to_dict()
+        # Global summary
+        all_reports = [r for r in (self.schema, self.fact, self.diff) if r]
+        result["summary"] = {
+            "total_checks": sum(len(r.checks) for r in all_reports),
+            "passed": sum(r.passed for r in all_reports),
+            "warnings": sum(r.warnings for r in all_reports),
+            "failed": sum(r.failed for r in all_reports),
+        }
+        return result
+
+    def to_json(self, indent: int = 2) -> str:
+        return json.dumps(self.to_dict(), indent=indent, ensure_ascii=False)

@@ -109,12 +109,21 @@ Built-in patterns detect:
 
 ## CI Integration
 
+```bash
+# JSON output for programmatic parsing
+agent-ci --json ./output/ | jq .verdict
+# "PASS"
+
+agent-ci --json ./output/ | jq .summary
+# {"total_checks": 6, "passed": 5, "warnings": 1, "failed": 0}
+```
+
 ```yaml
 # .github/workflows/agent-check.yml
 - name: Verify agent output
   run: |
     pip install agent-ci-verify
-    agent-ci ./output/
+    agent-ci --json ./output/ | tee result.json
 ```
 
 ## Development

@@ -114,34 +114,42 @@ def _print_summary(report: PipelineReport) -> None:
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to .agent-ci.yaml config file.",
 )
+@click.option("--json", "output_json", is_flag=True, help="Output machine-readable JSON.")
 @click.option("--version", is_flag=True, help="Show version and exit.")
-def main(output_dir: Path, config_path: Path | None, version: bool) -> None:
+def main(output_dir: Path, config_path: Path | None, output_json: bool, version: bool) -> None:
     """CI/CD verification pipeline for AI agent outputs.
 
     OUTPUT_DIR: Directory containing agent output files to verify.
     """
     if version:
-        console.print(f"agent-ci v{__version__}")
+        if output_json:
+            import json as _json
+            print(_json.dumps({"name": "agent-ci-verify", "version": __version__}))
+        else:
+            console.print(f"agent-ci-verify v{__version__}")
         return
 
     # Load config
     try:
         config = load_config(config_path)
     except FileNotFoundError as e:
-        console.print(f"[red]Error:[/red] {e}")
-        sys.exit(1)
+        _fail(f"Config file not found: {e}", output_json)
     except Exception as e:
-        console.print(f"[red]Config error:[/red] {e}")
-        sys.exit(1)
+        _fail(f"Config error: {e}", output_json)
 
-    console.print(f"\n[bold]agent-ci[/bold] v{__version__}")
-    console.print(f"Output dir: [cyan]{output_dir}[/cyan]")
-    console.print(f"Checkers: [dim]{', '.join(config['pipeline']['enabled_checkers'])}[/dim]\n")
+    if not output_json:
+        console.print(f"\n[bold]agent-ci-verify[/bold] v{__version__}")
+        console.print(f"Output dir: [cyan]{output_dir}[/cyan]")
+        console.print(f"Checkers: [dim]{', '.join(config['pipeline']['enabled_checkers'])}[/dim]\n")
 
     # Run pipeline
     report = asyncio.run(run_pipeline(output_dir, config))
 
-    # Print results
+    if output_json:
+        print(report.to_json())
+        sys.exit(report.exit_code)
+
+    # Print results (rich)
     if report.schema:
         _print_checker_report(report.schema, "📋 Schema Checker")
     if report.fact:
@@ -150,6 +158,16 @@ def main(output_dir: Path, config_path: Path | None, version: bool) -> None:
         _print_checker_report(report.diff, "📊 Diff Checker")
 
     _print_summary(report)
+
+
+def _fail(message: str, as_json: bool = False) -> None:
+    """Exit with error, optionally as JSON."""
+    if as_json:
+        import json as _json
+        print(_json.dumps({"verdict": "ERROR", "error": message}))
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
