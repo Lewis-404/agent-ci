@@ -186,6 +186,34 @@ size:
   max_bytes: 5000000
 ```
 
+## Docker
+
+```bash
+# 克隆并构建
+git clone https://github.com/Lewis-404/agent-ci-verify.git
+cd agent-ci-verify
+
+# 生成 API Key
+export AGENT_CI_API_KEY=$(openssl rand -hex 32)
+
+# 使用 docker-compose 启动
+docker compose up -d
+
+# 验证服务运行中（健康检查返回各 checker 状态）
+curl http://localhost:8899/health
+```
+
+或手动构建：
+
+```bash
+docker build -t agent-ci-verify .
+docker run -p 8899:8899 \
+  -e AGENT_CI_API_KEY="$AGENT_CI_API_KEY" \
+  -e AGENT_CI_ALLOWED_ROOTS="/data" \
+  -v ./data:/data:ro \
+  agent-ci-verify
+```
+
 ## 开发
 
 ```bash
@@ -199,9 +227,9 @@ pytest tests/ -v
 
 如果当前 shell 没有激活虚拟环境，本地验证命令请通过 `./.venv/bin/...` 执行。
 
-## Service 模式（v1.0+）
+## Service 模式（v1.0.5+）
 
-可以作为常驻 HTTP API 运行，接入 CI/CD 管道：
+可以作为常驻 HTTP API 运行，接入 CI/CD 管道。服务器模式使用结构化日志（structlog），如果 structlog 不可用则回退到标准日志。
 
 ```bash
 # 安装 server 依赖
@@ -212,15 +240,26 @@ agent-ci serve
 
 # 健康检查
 curl http://127.0.0.1:8899/health
-# {"status":"ok","version":"1.0.0"}
+# {"status":"ok","version":"1.0.5","checkers":{"schema":"healthy","fact":"healthy","diff":"healthy"}}
 
-# 通过 API 验证 Agent 产出
+# 通过 API 验证 Agent 产出（需要 API Key）
 curl -X POST http://127.0.0.1:8899/verify \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
   -d '{"output_directory": "/path/to/agent/output"}'
 ```
 
+> **注意：** `POST /verify` 接口需要 API Key 认证。使用 `openssl rand -hex 32` 生成密钥，并在启动服务器前设置 `AGENT_CI_API_KEY` 环境变量。
+
 自定义主机/端口：`agent-ci serve --host 0.0.0.0 --port 8080`.
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| AGENT_CI_API_KEY | *(必填)* | POST /verify 接口的 API 认证密钥 |
+| AGENT_CI_RATE_LIMIT | 10 | 每个 IP+Key 每时间窗口的最大请求数 |
+| AGENT_CI_RATE_WINDOW | 60 | 速率限制窗口（秒） |
 
 ## 设计思路
 

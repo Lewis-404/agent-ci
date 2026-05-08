@@ -185,6 +185,34 @@ size:
   max_bytes: 5000000
 ```
 
+## Docker
+
+```bash
+# Clone and build
+git clone https://github.com/Lewis-404/agent-ci-verify.git
+cd agent-ci-verify
+
+# Generate API key
+export AGENT_CI_API_KEY=$(openssl rand -hex 32)
+
+# Start with docker-compose
+docker compose up -d
+
+# Verify it's running
+curl http://localhost:8899/health
+```
+
+Or build manually:
+
+```bash
+docker build -t agent-ci-verify .
+docker run -p 8899:8899 \
+  -e AGENT_CI_API_KEY="$AGENT_CI_API_KEY" \
+  -e AGENT_CI_ALLOWED_ROOTS="/data" \
+  -v ./data:/data:ro \
+  agent-ci-verify
+```
+
 ## Development
 
 ```bash
@@ -198,9 +226,9 @@ pytest tests/ -v
 
 If the shell is not activated, run local verification commands through `./.venv/bin/...`.
 
-## Service Mode (v1.0+)
+## Service Mode (v1.0.5+)
 
-Run as a persistent HTTP API for CI/CD integration:
+Run as a persistent HTTP API for CI/CD integration. Server mode uses structured logging (structlog), falling back to standard logging if structlog is unavailable.
 
 ```bash
 # Install with server dependencies
@@ -211,15 +239,26 @@ agent-ci serve
 
 # Health check
 curl http://127.0.0.1:8899/health
-# {"status":"ok","version":"1.0.0"}
+# {"status":"ok","version":"1.0.5","checkers":{"schema":"healthy","fact":"healthy","diff":"healthy"}}
 
-# Verify agent output via API
+# Verify agent output via API (API key REQUIRED)
 curl -X POST http://127.0.0.1:8899/verify \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
   -d '{"output_directory": "/path/to/agent/output"}'
 ```
 
+> **Note:** API key authentication is REQUIRED for `POST /verify`. Generate a key with `openssl rand -hex 32` and set the `AGENT_CI_API_KEY` environment variable before starting the server.
+
 Customize host/port: `agent-ci serve --host 0.0.0.0 --port 8080`.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| AGENT_CI_API_KEY | *(required)* | API key for POST /verify authentication |
+| AGENT_CI_RATE_LIMIT | 10 | Max requests per window per IP+key |
+| AGENT_CI_RATE_WINDOW | 60 | Rate limit window in seconds |
 
 ## Design Rationale
 
