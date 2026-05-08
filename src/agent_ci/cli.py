@@ -269,12 +269,20 @@ def _start_server(config_path: Path | None, host: str, port: int) -> None:
     console.print(f"\n[bold]agent-ci-verify[/bold] API Server v{__version__}")
     console.print(f"Listening on [cyan]http://{host}:{port}[/cyan]")
     console.print("  [dim]POST /verify[/dim]  — verify agent output directory")
-    console.print("  [dim]GET /health[/dim]   — health check")
+    console.print("  [dim]GET /health[/dim]   — health check (with checker status)")
     console.print()
 
     import uvicorn
 
-    uvicorn.run(application, host=host, port=port, log_level="warning")
+    config = uvicorn.Config(
+        application,
+        host=host,
+        port=port,
+        log_level="warning",
+        timeout_graceful_shutdown=10,
+    )
+    server = uvicorn.Server(config)
+    server.run()
 
 
 def _fail(message: str, as_json: bool = False) -> None:

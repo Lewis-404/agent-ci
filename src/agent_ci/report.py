@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_ci import __version__
 from agent_ci.types import PipelineReport
 
 # ── HTML Template ─────────────────────────────────────────────────
@@ -165,7 +166,7 @@ _EMPTY_ROWS = (
 def generate_report(
     report: PipelineReport,
     output_dir: Path,
-    version: str = "0.5.0",
+    version: str = __version__,
 ) -> str:
     """Generate a self-contained HTML audit report."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")

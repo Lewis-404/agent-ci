@@ -36,18 +36,23 @@ echo "  README.md → ${NEW_VERSION}"
 sed -i '' "s/agent-ci-verify v[0-9.]*/agent-ci-verify v${NEW_VERSION}/" README_CN.md
 echo "  README_CN.md → ${NEW_VERSION}"
 
+# src/agent_ci/__init__.py
+sed -i '' "s/^__version__ = \"[^\"]*\"/__version__ = \"${NEW_VERSION}\"/" src/agent_ci/__init__.py
+echo "  __init__.py → ${NEW_VERSION}"
+
 echo ""
 
 # ── Step 2: Run pre-release gate ────────────────────────────────────
 echo "[2/6] Pre-release gate..."
 
 # README version check (sanity — sed should have done it)
-PYPROJ_VER=$(grep '^version = ' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+PYPROJ_VER=$(grep '^version = ' pyproject.toml | head -1 | cut -d '"' -f2)
 README_EN_VER=$(grep -o 'agent-ci-verify v[0-9.]*' README.md | head -1 | sed 's/.*v//')
 README_CN_VER=$(grep -o 'agent-ci-verify v[0-9.]*' README_CN.md | head -1 | sed 's/.*v//')
+INIT_VER=$(grep '^__version__ = ' src/agent_ci/__init__.py | sed 's/.*= "\\(.*\\)"/\\1/')
 
-if [ "$PYPROJ_VER" != "$NEW_VERSION" ] || [ "$README_EN_VER" != "$NEW_VERSION" ] || [ "$README_CN_VER" != "$NEW_VERSION" ]; then
-    echo -e "  ${RED}❌ Version sync failed: pyproject=${PYPROJ_VER} EN=${README_EN_VER} CN=${README_CN_VER}${NC}"
+if [ "$PYPROJ_VER" != "$NEW_VERSION" ] || [ "$README_EN_VER" != "$NEW_VERSION" ] || [ "$README_CN_VER" != "$NEW_VERSION" ] || [ "$INIT_VER" != "$NEW_VERSION" ]; then
+    echo -e "  ${RED}❌ Version sync failed: pyproject=${PYPROJ_VER} EN=${README_EN_VER} CN=${README_CN_VER} init=${INIT_VER}${NC}"
     exit 1
 fi
 echo "  ✅ Version sync: $NEW_VERSION"
@@ -81,7 +86,7 @@ echo ""
 
 # ── Step 5: Commit + Tag ───────────────────────────────────────────
 echo "[5/6] Committing + tagging..."
-git add pyproject.toml README.md README_CN.md
+git add pyproject.toml README.md README_CN.md src/agent_ci/__init__.py
 git commit -m "release: v${NEW_VERSION}" > /dev/null 2>&1
 git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
 echo "  ✅ commit + tag v${NEW_VERSION}"

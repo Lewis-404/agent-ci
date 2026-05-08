@@ -1,0 +1,42 @@
+# ── Agent-CI-Verify Compose Stack ──────────────────────────────────
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Logs:   docker compose logs -f
+
+version: "3.8"
+
+services:
+  agent-ci-verify:
+    build: .
+    image: agent-ci-verify:latest
+    container_name: agent-ci-verify
+    restart: unless-stopped
+    ports:
+      - "8899:8899"
+    environment:
+      # ── Security ──────────────────────────────────────────
+      # Required. POST /verify returns 401 without a valid API key.
+      # Generate: openssl rand -hex 32
+      AGENT_CI_API_KEY: ""
+
+      # ── Rate limiting ─────────────────────────────────────
+      # Max requests per window per IP (default: 10).
+      AGENT_CI_RATE_LIMIT: "10"
+      # Window size in seconds (default: 60).
+      AGENT_CI_RATE_WINDOW: "60"
+
+      # ── Workspace restriction ─────────────────────────────
+      # Comma-separated list of allowed root directories.
+      # First entry is used as the workspace root.
+      AGENT_CI_ALLOWED_ROOTS: "/data"
+
+    volumes:
+      # Mount agent output directories here for verification.
+      - ./data:/data:ro
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8899/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
