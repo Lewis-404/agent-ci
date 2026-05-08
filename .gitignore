@@ -29,4 +29,6 @@ Thumbs.db
 
 # Project
 .agent-ci-output/
+.agent-ci-history/
+**/agent-ci-report-*.html
 *.agent-ci-test.yaml
