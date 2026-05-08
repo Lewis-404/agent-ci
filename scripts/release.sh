@@ -49,7 +49,7 @@ echo "[2/6] Pre-release gate..."
 PYPROJ_VER=$(grep '^version = ' pyproject.toml | head -1 | cut -d '"' -f2)
 README_EN_VER=$(grep -o 'agent-ci-verify v[0-9.]*' README.md | head -1 | sed 's/.*v//')
 README_CN_VER=$(grep -o 'agent-ci-verify v[0-9.]*' README_CN.md | head -1 | sed 's/.*v//')
-INIT_VER=$(grep '^__version__ = ' src/agent_ci/__init__.py | sed 's/.*= "\\(.*\\)"/\\1/')
+INIT_VER=$(grep '^__version__ = ' src/agent_ci/__init__.py | cut -d '"' -f2)
 
 if [ "$PYPROJ_VER" != "$NEW_VERSION" ] || [ "$README_EN_VER" != "$NEW_VERSION" ] || [ "$README_CN_VER" != "$NEW_VERSION" ] || [ "$INIT_VER" != "$NEW_VERSION" ]; then
     echo -e "  ${RED}❌ Version sync failed: pyproject=${PYPROJ_VER} EN=${README_EN_VER} CN=${README_CN_VER} init=${INIT_VER}${NC}"
